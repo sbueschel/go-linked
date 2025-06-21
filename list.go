@@ -1,4 +1,5 @@
-// Package linked.provides (y)et (a)nother (l)inked (l)ist implementation.
+// Package linked provides a doubly-linked list implementation with support for
+// generics.
 package linked
 
 import (
