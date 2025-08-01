@@ -13,9 +13,13 @@ import (
 // Assert checks that two values are equal using the "==" operator. Returns true
 // if equal. Otherwise, it fails the test, logs a message showing both expected
 // and actual values, and returns false.
-func Assert[T comparable](t *testing.T, expect, actual T) bool {
+func Assert[T comparable](t *testing.T, expect, actual T, optMsg ...any) bool {
 	if expect != actual {
-		t.Logf("Values are not equal:\n\tExpect: %#v\n\tActual:%#v\n", expect, actual)
+		t.Logf(
+			"Values are not equal:\n\tExpect: %#v\n\tActual:%#v\n%s",
+			expect, actual, handleMsgf(optMsg...),
+		)
+
 		t.Fail()
 		return false
 	}
@@ -25,17 +29,17 @@ func Assert[T comparable](t *testing.T, expect, actual T) bool {
 
 // AssertPanic tests that the given function panics at some point during its
 // execution, failing the test and returning false, otherwise.
-func AssertPanic(t *testing.T, fn func()) bool {
-	return assertPanic(t, fn, true)
+func AssertPanic(t *testing.T, fn func(), optMsg ...any) bool {
+	return assertPanic(t, fn, true, optMsg...)
 }
 
 // AssertNoPanic tests that the given function does not panic during its
 // execution, failing the test and returning false otherwise.
-func AssertNoPanic(t *testing.T, fn func()) bool {
-	return assertPanic(t, fn, false)
+func AssertNoPanic(t *testing.T, fn func(), optMsg ...any) bool {
+	return assertPanic(t, fn, false, optMsg...)
 }
 
-func assertPanic(t *testing.T, fn func(), should bool) bool {
+func assertPanic(t *testing.T, fn func(), should bool, optMsg ...any) bool {
 	var panicked bool
 	var prefix string
 
@@ -57,9 +61,23 @@ func assertPanic(t *testing.T, fn func(), should bool) bool {
 		prefix = "no"
 	}
 
-	t.Logf("Expected %s panic to occur\n", prefix)
+	t.Logf("Expected %s panic to occur\n%s", prefix, handleMsgf(optMsg...))
 	t.Fail()
 	return false
+}
+
+func handleMsgf(args ...any) (msg string) {
+	var ok bool
+
+	if len(args) == 0 {
+		return msg
+	} else if msg, ok = args[0].(string); !ok {
+		msg = fmt.Sprint(args...)
+	} else if len(args) > 1 {
+		msg = fmt.Sprintf(msg, args[1:]...)
+	}
+
+	return msg
 }
 
 // When is a functional ternary statement which returns "this" when cond is
