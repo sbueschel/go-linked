@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/sbueschel/go-linked"
-	"github.com/stretchr/testify/assert"
 )
 
 type IteratorTestSuite[T comparable] struct {
@@ -64,12 +63,12 @@ func (its *IteratorTestSuite[T]) TestNext(t *testing.T) {
 	var j int
 	it := its.Iter(its.Backward)
 
-	if !assert.Equal(
+	if !Assert(
 		t, its.Backward, it.IsBackward(),
 		"IsBackward() returned incorrect value",
 	) {
 		return
-	} else if !assert.Equal(
+	} else if !Assert(
 		t, its.ExpectVersion, it.Version(),
 		"Version(): should match version of originating list",
 	) {
@@ -77,21 +76,21 @@ func (its *IteratorTestSuite[T]) TestNext(t *testing.T) {
 	}
 
 	for j = 0; it.Next(); j++ {
-		if !assert.Equal(t, j, it.Pos, "Pos") {
+		if !Assert(t, j, it.Pos, "Pos") {
 			return
-		} else if !assert.Equal(t, j+1, it.Count(), "Count()") {
+		} else if !Assert(t, j+1, it.Count(), "Count()") {
 			return
-		} else if !assert.NotNil(t, its.ExpectNodes[j], "Node") {
+		} else if !AssertNotNil(t, its.ExpectNodes[j], "Node") {
 			return
-		} else if !assert.Equal(t, its.ExpectNodes[j], it.Node, "Node") {
+		} else if !Assert(t, its.ExpectNodes[j], it.Node, "Node") {
 			return
-		} else if !assert.Equal(t, its.ExpectValues[j], it.Node.Value, "Node.Value") {
+		} else if !Assert(t, its.ExpectValues[j], it.Node.Value, "Node.Value") {
 			return
 		}
 	}
 
-	assert.Equal(t, false, it.Next(), "Next() should return false after completion")
-	assert.Equal(t, len(its.ExpectValues), j, "Total number of items (j)")
+	Assert(t, false, it.Next(), "Next() should return false after completion")
+	Assert(t, len(its.ExpectValues), j, "Total number of items (j)")
 }
 
 func (its *IteratorTestSuite[T]) TestGather(t *testing.T) {
@@ -102,8 +101,8 @@ func (its *IteratorTestSuite[T]) TestGather(t *testing.T) {
 		expect = NodeSliceToValues(its.ExpectNodes)
 	}
 
-	assert.Equal(t, expect, it.Gather())
-	assert.Nil(t, it.Gather(), "iterator should be exhausted")
+	AssertSlice(t, expect, it.Gather())
+	AssertNil(t, it.Gather(), "iterator should be exhausted")
 }
 
 func (its *IteratorTestSuite[T]) TestInto(t *testing.T) {
@@ -120,20 +119,20 @@ func (its *IteratorTestSuite[T]) TestInto(t *testing.T) {
 		actual = append(actual, buf[:n]...)
 
 		if len(actual) > len(expect) {
-			assert.Fail(
-				t, "too many items",
-				"expected at most %d, copied %d",
+			t.Logf(
+				"too many items: expected at most %d, copied %d",
 				len(expect), len(actual),
 			)
 
+			t.Fail()
 			return
 		}
 	}
 
-	assert.Equal(t, expect, actual)
+	AssertSlice(t, expect, actual)
 }
 
 func (its *IteratorTestSuite[T]) TestAll(t *testing.T) {
 	it := its.Iter(its.Backward)
-	assert.NoError(t, VerifyIterSeq(t, its.ExpectNodes, it.All()))
+	AssertNoError(t, VerifyIterSeq(t, its.ExpectNodes, it.All()))
 }
