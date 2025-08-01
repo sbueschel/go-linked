@@ -7,6 +7,7 @@
 
 ## Features
 
+- **No dependencies**: zero 3rd party dependencies.
 - **Generics**: no need to use `any` or `interface{}` (unless you really want to).
 - **Iterators**: provides both `range` (as in [`iter.Seq`](https://pkg.go.dev/iter#Seq)) and object-based iterators.
 - **...and more**: this package provides plenty in the way of features/ergonomics, but enumerating them is currently a TODO item 🙂
