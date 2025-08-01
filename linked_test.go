@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/sbueschel/go-linked"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -104,7 +103,7 @@ func (ts *TestSuite[T]) Isolate(t *testing.T, name string, fn func(*testing.T)) 
 }
 
 func (ts *TestSuite[T]) fail(t *testing.T) {
-	assert.Fail(t, "fast fail due to prior testing failure", "caused by: %s", ts.failedAt)
+	t.Logf("fast fail due to prior testing failure\n\tCaused by: %s", ts.failedAt)
 }
 
 func (ts *TestSuite[T]) Test(t *testing.T) {
@@ -148,7 +147,7 @@ func (ts *TestSuite[T]) TestListNew(t *testing.T) {
 }
 
 func (ts *TestSuite[T]) TestListLen(t *testing.T) {
-	assert.Equal(t, len(ts.Values()), ts.List().Len(), "unexpected length")
+	Assert(t, len(ts.Values()), ts.List().Len(), "unexpected length")
 }
 
 func (ts *TestSuite[T]) TestListFront(t *testing.T) {
@@ -167,11 +166,11 @@ func (ts *TestSuite[T]) TestListCopy(t *testing.T) {
 	orig := ts.List()
 	cp := orig.Copy()
 
-	if !assert.NotSame(t, orig, cp, "Copy() should return a distinct %T", cp) {
+	if !AssertNotSame(t, orig, cp, "Copy() should return a distinct %T", cp) {
 		return
-	} else if !assert.Equal(t, orig.Len(), cp.Len(), "Copy().Len()") {
+	} else if !Assert(t, orig.Len(), cp.Len(), "Copy().Len()") {
 		return
-	} else if !assert.Equal(t, orig.Version(), cp.Version(), "Copy().Version()") {
+	} else if !Assert(t, orig.Version(), cp.Version(), "Copy().Version()") {
 		return
 	} else if AssertListEqual(t, orig, cp) && ts.canCopy == 0 {
 		ts.canCopy = 1
@@ -192,7 +191,7 @@ func (ts *TestSuite[T]) TestListClear(t *testing.T) {
 	}
 
 	for i := range nodes {
-		if !assert.Same(
+		if !AssertSame(
 			t, nodes[i], ts.State.Nodes[i],
 			"at index %d: shallow copy should refer to same %T",
 			i, nodes[i],
@@ -201,7 +200,7 @@ func (ts *TestSuite[T]) TestListClear(t *testing.T) {
 		}
 	}
 
-	if !assert.Same(
+	if !AssertSame(
 		t, ts.List(), ts.List().Clear(),
 		"Clear() should return method receiver",
 	) {
@@ -209,31 +208,31 @@ func (ts *TestSuite[T]) TestListClear(t *testing.T) {
 	}
 
 	for i := range nodes {
-		if node := nodes[i]; !assert.False(
-			t, node.IsMember(ts.List()),
+		if node := nodes[i]; !Assert(
+			t, false, node.IsMember(ts.List()),
 			"after Clear(): %[1]T at index %[2]d: (%[1]T).IsMember(%[3]T@%[3]p)",
 			node, i, ts.State.List,
 		) {
 			return
-		} else if !assert.True(
-			t, node.IsMember(nil),
+		} else if !Assert(
+			t, true, node.IsMember(nil),
 			"after Clear(): %[1]T at index %[2]d: (%[1]T).IsMember(nil)",
 			node, i,
 		) {
 			return
-		} else if prev := node.Prev(); !assert.Nil(
+		} else if prev := node.Prev(); !AssertNil(
 			t, prev,
 			"after Clear(): %[1]T at index %[2]d: (%[1]T).Prev() -> %#[1]v",
 			prev, i,
 		) {
 			return
-		} else if next := node.Next(); !assert.Nil(
+		} else if next := node.Next(); !AssertNil(
 			t, next,
 			"after Clear(): %[1]T at index %[2]d: (%[1]T).Next() -> %#[1]v",
 			next, i,
 		) {
 			return
-		} else if !assert.Equal(
+		} else if !Assert(
 			t, values[i], node.Value,
 			"after Clear(): %[1]T at index %[2]d: (%[1]T).Value should not change",
 			node, i,
@@ -329,7 +328,7 @@ func (ts *TestSuite[T]) TestListRemove(t *testing.T) {
 	var foreign linked.Node[T]
 	list := ts.List()
 	version := list.Version()
-	if !assert.Equal(
+	if !Assert(
 		t, foreign.Value, ts.List().Remove(&foreign),
 		"should always return value of node, even when foreign",
 	) {
@@ -342,30 +341,30 @@ func (ts *TestSuite[T]) TestListRemove(t *testing.T) {
 	values := slices.Clone(ts.Values())
 	size := list.Len()
 	for i := 0; list.Len() > 0; i++ {
-		if !assert.Equal(
+		if !Assert(
 			t, values[i], list.Remove(list.Front()),
 			"unexpected node at pseudo-index %d", i,
 		) {
 			return
 		} else if version++; !AssertVersion(t, version, list.Version()) {
 			return
-		} else if !assert.Less(t, i, size, "failed to delete nodes properly") {
+		} else if !Assert(t, true, i < size, "failed to delete nodes properly") {
 			return
 		}
 	}
 
 	for i := range nodes {
-		if !assert.True(
-			t, nodes[i].IsMember(nil),
+		if !Assert(
+			t, true, nodes[i].IsMember(nil),
 			"deleted node at index %d should identify as member of nil", i,
 		) {
 			return
-		} else if !assert.Nil(
+		} else if !AssertNil(
 			t, nodes[i].Prev(),
 			"deleted node at index %d should have no link to Prev() node", i,
 		) {
 			return
-		} else if !assert.Nil(
+		} else if !AssertNil(
 			t, nodes[i].Next(),
 			"deleted node at index %d should have no link to Next() node", i,
 		) {
@@ -383,11 +382,11 @@ func (ts *TestSuite[T]) TestListRotate(t *testing.T) {
 	values := ts.Values()
 	version := list.Version()
 
-	if !assert.Same(t, list, list.RotateLeft(-1), "should return receiver %T", list) {
+	if !AssertSame(t, list, list.RotateLeft(-1), "should return receiver %T", list) {
 		return
 	} else if !AssertVersion(t, version, list.Version()) { // should be no-op
 		return
-	} else if !assert.Same(t, list, list.RotateRight(size*4), "should return receiver %T", list) {
+	} else if !AssertSame(t, list, list.RotateRight(size*4), "should return receiver %T", list) {
 		return
 	} else if !AssertVersion(t, version, list.Version()) { // should be no-op
 		return
@@ -404,7 +403,7 @@ func (ts *TestSuite[T]) TestListRotate(t *testing.T) {
 			steps += size // to test modulo functionality correctly
 		}
 
-		if !assert.Same(t, list, list.RotateLeft(steps), "should return receiver %T", list) {
+		if !AssertSame(t, list, list.RotateLeft(steps), "should return receiver %T", list) {
 			return
 		} else if !AssertVersion(t, version, list.Version()) {
 			return
@@ -412,7 +411,7 @@ func (ts *TestSuite[T]) TestListRotate(t *testing.T) {
 			return
 		} else if i == 0 {
 			continue // no need to undo the rotation
-		} else if !assert.Same(t, list, list.RotateRight(i), "should return receiver %T", list) {
+		} else if !AssertSame(t, list, list.RotateRight(i), "should return receiver %T", list) {
 			return
 		} else if version++; !AssertVersion(t, version, list.Version()) {
 			return
@@ -431,7 +430,7 @@ func (ts *TestSuite[T]) TestListForEach(t *testing.T) {
 		}
 
 		ts.List().ForEach(func(v T) { actual = append(actual, v) })
-		assert.Equal(t, expect, actual)
+		AssertSlice(t, expect, actual)
 	})
 
 	t.Run("Backward", func(t *testing.T) {
@@ -442,7 +441,7 @@ func (ts *TestSuite[T]) TestListForEach(t *testing.T) {
 		}
 
 		ts.List().ForEach(func(v T) { actual = append(actual, v) }, true)
-		assert.Equal(t, expect, actual)
+		AssertSlice(t, expect, actual)
 	})
 
 }
@@ -487,11 +486,11 @@ func (ts *TestSuite[T]) TestNodePop(t *testing.T) {
 
 	for node != nil {
 		next = node.Next()
-		if !assert.Same(t, node, node.Pop(), "should return receiver") {
+		if !AssertSame(t, node, node.Pop(), "should return receiver") {
 			return
-		} else if !assert.True(t, node.IsOrphan(), "(%T).IsOrphan()", node) {
+		} else if !Assert(t, true, node.IsOrphan(), "(%T).IsOrphan()", node) {
 			return
-		} else if !assert.Less(t, count, size, "popped too many nodes") {
+		} else if !Assert(t, true, count < size, "popped too many nodes") {
 			return
 		}
 
@@ -514,11 +513,11 @@ func (ts *TestSuite[T]) TestNodeRemove(t *testing.T) {
 		}
 	}
 
-	if !assert.Len(t, values, len(ts.Values())) || len(values) == 0 {
+	if !Assert(t, len(values), len(ts.Values())) || len(values) == 0 {
 		return
 	}
 
-	assert.Equal(t, ts.Values(), values)
+	AssertSlice(t, ts.Values(), values)
 }
 
 func (ts *TestSuite[T]) testListEdge(t *testing.T, edge linked.Edge) {
@@ -541,36 +540,36 @@ func (ts *TestSuite[T]) testListEdge(t *testing.T, edge linked.Edge) {
 		index = len(ts.Values()) - 1
 	}
 
-	if !assert.Equal(
+	if !Assert(
 		t, n > 0, actual.OK(),
 		"%s.OK() should be %T when receiver is %snil",
 		sig, n > 0, When(n > 0, "non-"),
 	) || n == 0 {
 		return
-	} else if !assert.Equal(
+	} else if !Assert(
 		t, ts.Values()[index], actual.Value,
 		"%s.Value should equal initialization value at index %d",
 		sig, index,
 	) {
 		return
-	} else if !assert.Same(
+	} else if !AssertSame(
 		t, actual, list.Edge(edge),
 		"(%T).Edge(%s)", list, edgeArg,
 	) {
 		return
-	} else if !assert.True(
-		t, actual.IsEdge(edge),
+	} else if !Assert(
+		t, true, actual.IsEdge(edge),
 		"%s.IsEdge(%s)", sig, edgeArg,
 	) {
 		return
-	} else if (n == 1 || edge == linked.Front) && !assert.True(
-		t, actual.IsFront(),
+	} else if (n == 1 || edge == linked.Front) && !Assert(
+		t, true, actual.IsFront(),
 		"%s.IsFront()", sig,
 	) {
 		return
 	} else if n == 1 || edge == linked.Back {
-		assert.True(
-			t, actual.IsBack(),
+		Assert(
+			t, true, actual.IsBack(),
 			"%s.IsBack()", sig,
 		)
 	}
@@ -586,7 +585,7 @@ func (ts *TestSuite[T]) testListIterSeq(t *testing.T, edge linked.Edge) {
 		fn, expect = ts.List().Backward, Reversed(ts.Values())
 	}
 
-	assert.NoError(t, VerifyIterSeq(t, expect, fn()))
+	AssertNoError(t, VerifyIterSeq(t, expect, fn()))
 }
 
 func (ts *TestSuite[T]) testListPop(t *testing.T, edge linked.Edge) {
@@ -603,36 +602,36 @@ func (ts *TestSuite[T]) testListPop(t *testing.T, edge linked.Edge) {
 
 	for range len(state.Nodes) {
 		node := pop()
-		if !assert.Same(
+		if !AssertSame(
 			t, state.Nodes[i], node,
 			"expected to pop %[1]T at index %[2]d\n\tPopped: %[1]#v\n\tWanted: %[3]#v",
 			node, i, state.Nodes[i],
 		) {
 			return
-		} else if !assert.Equal(
+		} else if !Assert(
 			t, state.Values[i], node.Value,
 			"at index %d: unexpected (%T).Value",
 			i, node,
 		) {
 			return
-		} else if !assert.Nil(t, node.Next(), "(%T).Next()", node) {
+		} else if !AssertNil(t, node.Next(), "(%T).Next()", node) {
 			return
-		} else if !assert.Nil(t, node.Prev(), "(%T).Prev()", node) {
+		} else if !AssertNil(t, node.Prev(), "(%T).Prev()", node) {
 			return
-		} else if !assert.False(
-			t, state.List.IsMember(node),
+		} else if !Assert(
+			t, false, state.List.IsMember(node),
 			"(%[1]T).IsMember(%[2]T@%[2]p)",
 			state.List, node,
 		) {
 			return
-		} else if !assert.False(
-			t, node.IsMember(state.List),
+		} else if !Assert(
+			t, false, node.IsMember(state.List),
 			"(%[1]T).IsMember(%[2]T@%[2]p)",
 			node, state.List,
 		) {
 			return
-		} else if !assert.True(
-			t, node.IsOrphan(),
+		} else if !Assert(
+			t, true, node.IsOrphan(),
 			"(%[1]T).IsOrphan()",
 			node,
 		) {
@@ -642,7 +641,7 @@ func (ts *TestSuite[T]) testListPop(t *testing.T, edge linked.Edge) {
 		i += inc
 	}
 
-	if !assert.Nil(t, pop(), "should have popped all values") {
+	if !AssertNil(t, pop(), "should have popped all values") {
 		return
 	}
 
@@ -691,19 +690,19 @@ func (ts *TestSuite[T]) testListMove(t *testing.T, edge linked.Edge) {
 	for node = list.Edge(oppo); node != target; node = list.Edge(oppo) {
 		sig = fmt.Sprintf(sigFmt, node)
 
-		if actual = move(node, target); !assert.Same(
+		if actual = move(node, target); !AssertSame(
 			t, node, actual,
 			"should return the same node\n\tMethod: %s",
 			sig,
 		) {
 			return
-		} else if !assert.Same(
+		} else if !AssertSame(
 			t, target, node.Peer(oppo),
 			"node should see target as its %s\n\tMethod: %s",
 			oppo.Node(), sig,
 		) {
 			return
-		} else if !assert.Same(
+		} else if !AssertSame(
 			t, node, target.Peer(edge),
 			"target should see node as its %s\n\tMethod: %s",
 			edge.Node(), sig,
@@ -711,16 +710,16 @@ func (ts *TestSuite[T]) testListMove(t *testing.T, edge linked.Edge) {
 			return
 		} else if version++; !AssertVersion(t, version, list.Version()) {
 			return
-		} else if !assert.Less(t, count, size, "too many moves") {
+		} else if !Assert(t, true, count < size, "too many moves") {
 			return
 		}
 
 		count++
 	}
 
-	if !assert.Same(t, node, target, "should have traversed to target node") {
+	if !AssertSame(t, node, target, "should have traversed to target node") {
 		return
-	} else if sig = fmt.Sprintf(sigFmt, node); !assert.Same(
+	} else if sig = fmt.Sprintf(sigFmt, node); !AssertSame(
 		t, target, move(node, target),
 		"should be a no-op returning the same node when node == target\n\tMethod: %s",
 		sig,
@@ -750,7 +749,7 @@ func (ts *TestSuite[T]) testListMoveForeign(t *testing.T, edge linked.Edge) {
 		result = list.MoveAfter(list.Back(), &foreign)
 	}
 
-	_ = assert.Nil(t, result, "should not do anything when target is not a list member") &&
+	_ = AssertNil(t, result, "should not do anything when target is not a list member") &&
 		AssertVersion(t, version, list.Version())
 }
 
@@ -767,7 +766,7 @@ func (ts *TestSuite[T]) testListInsertForeign(t *testing.T, edge linked.Edge) {
 		result = list.InsertAfter(foreign.Value, &foreign)
 	}
 
-	_ = assert.Nil(t, result, "should not do anything when target is not a list member") &&
+	_ = AssertNil(t, result, "should not do anything when target is not a list member") &&
 		AssertVersion(t, version, list.Version())
 }
 
@@ -835,21 +834,21 @@ func (ts *TestSuite[T]) testListInsertPush(t *testing.T, edge linked.Edge, push,
 	edgeNode = list.Edge(edge)
 
 	for i := range values {
-		if node = insert(values[i], nil); !assert.NotNil(t, node) {
+		if node = insert(values[i], nil); !AssertNotNil(t, node) {
 			return
-		} else if !assert.Same(
+		} else if !AssertSame(
 			t, node, list.Edge(edge),
 			"(%T).%s() should be new node returned by Push%s(%#v)",
 			list, edge.List(), edge.List(), values[i],
 		) {
 			return
-		} else if !assert.Same(
+		} else if !AssertSame(
 			t, edgeNode, node.Peer(oppo),
 			"Push%s(%#v).%s() should see old (%T).%s() node as its %s()",
 			edge.List(), values[i], oppo.Node(), list, edge.List(), oppo.Node(),
 		) {
 			return
-		} else if edgeNode != nil && !assert.Same(
+		} else if edgeNode != nil && !AssertSame(
 			t, node, edgeNode.Peer(edge),
 			"old (%T).%s() should see new %s as its %s()",
 			list, edge.List(), edge.List(), oppo.Node(),
@@ -943,19 +942,19 @@ func (ts *TestSuite[T]) testListInsertMirrored(t *testing.T, edge linked.Edge) {
 		expectNodes[m] = nodes[n-i-1]
 		expectNodes[k] = insert(values[i], expectNodes[m])
 
-		if !assert.NotNil(t, expectNodes[k]) {
+		if !AssertNotNil(t, expectNodes[k]) {
 			return
-		} else if !assert.Equal(t, values[i], expectNodes[k].Value, "bad value on new node") {
+		} else if !Assert(t, values[i], expectNodes[k].Value, "bad value on new node") {
 			return
-		} else if !assert.True(t, expectNodes[k].IsMember(list), "new node should be member") {
+		} else if !Assert(t, true, expectNodes[k].IsMember(list), "new node should be member") {
 			return
-		} else if !assert.Same(
+		} else if !AssertSame(
 			t, expectNodes[m], expectNodes[k].Peer(oppo),
 			"inserted node should see target node as its %s()",
 			oppo.Node(),
 		) {
 			return
-		} else if !assert.Same(
+		} else if !AssertSame(
 			t, expectNodes[k], expectNodes[m].Peer(edge),
 			"target of insert op should see new node as its %s()",
 			edge.Node(),
@@ -967,13 +966,13 @@ func (ts *TestSuite[T]) testListInsertMirrored(t *testing.T, edge linked.Edge) {
 	}
 
 	actualNodes, err := GatherNodes(list.Front(), false)
-	if !assert.NoError(t, err, "encountered error while trying to validate nodes") {
+	if !AssertNoError(t, err, "encountered error while trying to validate nodes") {
 		return
 	} else if !AssertNodesEqual(t, expectNodes, actualNodes) {
 		return
 	}
 
-	assert.Equal(t, expectValues, NodeSliceToValues(actualNodes), "unexpected node values")
+	AssertSlice(t, expectValues, NodeSliceToValues(actualNodes), "unexpected node values")
 }
 
 func (ts *TestSuite[T]) testListInsertMany(t *testing.T, edge linked.Edge, backward bool, useTarget ...*linked.Node[T]) {
@@ -1033,25 +1032,25 @@ func (ts *TestSuite[T]) testListInsertMany(t *testing.T, edge linked.Edge, backw
 
 	// Finally, the test
 	if left, right = insert(ts.Values(), target, backward); cutoff == -1 || len(expect) == 0 {
-		if !assert.Nil(t, left, "should be a no-op and left %T should be nil", left) {
+		if !AssertNil(t, left, "should be a no-op and left %T should be nil", left) {
 			return
-		} else if !assert.Nil(t, right, "should be a no-op and right %T should be nil", right) {
+		} else if !AssertNil(t, right, "should be a no-op and right %T should be nil", right) {
 			return
 		}
 
 		return
-	} else if version++; !assert.NotNil(t, left, "should have left %T", left) {
+	} else if version++; !AssertNotNil(t, left, "should have left %T", left) {
 		return
-	} else if !assert.NotNil(t, right, "should have right %T", right) {
+	} else if !AssertNotNil(t, right, "should have right %T", right) {
 		return
-	} else if len(expect) == 1 && !assert.Same(
+	} else if len(expect) == 1 && !AssertSame(
 		t, left, right,
 		"left and right should be same node when inserting 1 value",
 	) {
 		return
-	} else if !assert.Equal(t, expectLeft, left.Value, "unexpected value of left %T", left) {
+	} else if !Assert(t, expectLeft, left.Value, "unexpected value of left %T", left) {
 		return
-	} else if !assert.Equal(t, expectRight, right.Value, "unexpected value of right %T", right) {
+	} else if !Assert(t, expectRight, right.Value, "unexpected value of right %T", right) {
 		return
 	}
 
@@ -1070,7 +1069,7 @@ func (ts *TestSuite[T]) testListToEdge(t *testing.T, edge linked.Edge) {
 	n := list.Len()
 	expect := slices.Clone(ts.Values())
 
-	if !assert.Nil(t, list.MoveToEdge(&foreign, edge), "should return nil when node is foreign") {
+	if !AssertNil(t, list.MoveToEdge(&foreign, edge), "should return nil when node is foreign") {
 		return
 	} else if !AssertVersion(t, version, list.Version()) {
 		return
@@ -1079,7 +1078,7 @@ func (ts *TestSuite[T]) testListToEdge(t *testing.T, edge linked.Edge) {
 	for range n {
 		node := list.Edge(oppo)
 		oldEdge := list.Edge(edge)
-		if !assert.Same(
+		if !AssertSame(
 			t, node, list.MoveToEdge(node, edge),
 			"should return same node on success",
 		) {
@@ -1123,7 +1122,7 @@ func (ts *TestSuite[T]) testListTake(t *testing.T, edge linked.Edge) {
 	for range size {
 		if node == nil {
 			break
-		} else if !assert.Nil(t, take(node, target), "should be a no-op") {
+		} else if !AssertNil(t, take(node, target), "should be a no-op") {
 			return
 		} else if !AssertVersion(t, version, list.Version()) {
 			return
@@ -1136,11 +1135,11 @@ func (ts *TestSuite[T]) testListTake(t *testing.T, edge linked.Edge) {
 	other := list.Copy()
 	for i := 0; other.Len() > 0; i++ {
 		inherit := other.Edge(oppo)
-		if !assert.Same(t, inherit, take(inherit, target)) {
+		if !AssertSame(t, inherit, take(inherit, target)) {
 			return
 		} else if version++; !AssertVersion(t, version, list.Version()) {
 			return
-		} else if !assert.Less(t, i, size, "other list not draining") {
+		} else if !Assert(t, true, i < size, "other list not draining") {
 			return
 		}
 	}
@@ -1168,7 +1167,7 @@ func (ts *TestSuite[T]) testNodeMove(t *testing.T, edge linked.Edge) {
 		move = func(n, t *linked.Node[T]) *linked.Node[T] { return n.MoveAfter(t) }
 	}
 
-	if !assert.Nil(
+	if !AssertNil(
 		t, move(&orphan, list.Front()),
 		"should return nil to indicate failure when (%T).IsOrphan()",
 		&orphan,
@@ -1181,7 +1180,7 @@ func (ts *TestSuite[T]) testNodeMove(t *testing.T, edge linked.Edge) {
 			version++
 		}
 
-		if !assert.Same(t, node, move(node, target), "%s should succeed and return receiver node", sig) {
+		if !AssertSame(t, node, move(node, target), "%s should succeed and return receiver node", sig) {
 			return
 		} else if !AssertVersion(t, version, list.Version()) {
 			return
@@ -1213,7 +1212,7 @@ func (ts *TestSuite[T]) testNodeMoveToEdge(t *testing.T, edge linked.Edge, usesE
 		move = func(n *linked.Node[T]) *linked.Node[T] { return n.MoveToBack() }
 	}
 
-	if !assert.Nil(
+	if !AssertNil(
 		t, move(&orphan),
 		"should return nil to indicate failure when (%T).IsOrphan()",
 		&orphan,
@@ -1226,7 +1225,7 @@ func (ts *TestSuite[T]) testNodeMoveToEdge(t *testing.T, edge linked.Edge, usesE
 			version++
 		}
 
-		if !assert.Same(t, node, move(node), "%s should succeed and return receiver node", sig) {
+		if !AssertSame(t, node, move(node), "%s should succeed and return receiver node", sig) {
 			return
 		} else if !AssertVersion(t, version, list.Version()) {
 			return
@@ -1250,19 +1249,19 @@ func (s *State[T]) Copy(t *testing.T) *State[T] {
 	cp.List = s.List.Copy()
 	cp.Values = slices.Clone(s.Values)
 
-	if cp.Version = cp.List.Version(); !assert.Equal(
+	if cp.Version = cp.List.Version(); !Assert(
 		t, s.List.Version(), cp.Version,
 		"While copying %T: version mismatch",
 		s,
 	) {
 		return nil
-	} else if cp.Nodes, err = GatherNodes(cp.List.Front(), false); !assert.NoError(
+	} else if cp.Nodes, err = GatherNodes(cp.List.Front(), false); !AssertNoError(
 		t, err,
 		"While copying %T\n\tError: %v",
 		s, err,
 	) {
 		return nil
-	} else if !assert.NoError(
+	} else if !AssertNoError(
 		t, VerifyNodeValues(cp.Nodes, cp.Values),
 		"While copying %T: failed to verify expected state\n\tError: %v",
 		s, err,
@@ -1289,19 +1288,19 @@ func (s *State[T]) Init(t *testing.T) {
 	var err error
 	if s.List != nil {
 		return
-	} else if s.List = linked.New(s.Values); !assert.NotNil(
+	} else if s.List = linked.New(s.Values); !AssertNotNil(
 		t, s.List,
 		"constructor should not return a nil %T",
 		s.List,
 	) {
 		return
-	} else if s.Nodes, err = GatherNodes(s.List.Front(), false); !assert.NoError(
+	} else if s.Nodes, err = GatherNodes(s.List.Front(), false); !AssertNoError(
 		t, err,
 		"While initializing %T:\n\tError: %v",
 		s, err,
 	) {
 		return
-	} else if !assert.NoError(
+	} else if !AssertNoError(
 		t, VerifyNodeValues(s.Nodes, s.Values),
 		"While initializing %T:\n\tError: %v",
 		s, err,
@@ -1309,7 +1308,7 @@ func (s *State[T]) Init(t *testing.T) {
 		return
 	}
 
-	assert.Equal(
+	Assert(
 		t, uint(0), s.List.Version(),
 		"While initializing %T:\n\t(%T).Version(): initial value should be 0",
 		s, s.List,
