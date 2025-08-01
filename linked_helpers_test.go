@@ -1,8 +1,10 @@
 package linked_test
 
 import (
+	"errors"
 	"fmt"
 	"iter"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -16,7 +18,10 @@ import (
 func Assert[T comparable](t *testing.T, expect, actual T, optMsg ...any) bool {
 	if expect != actual {
 		t.Logf(
-			"Values are not equal:\n\tExpect: %#v\n\tActual:%#v\n%s",
+			"Values are not equal:\n"+
+				"\tExpect: %#v\n"+
+				"\tActual:%#v\n"+
+				"%s",
 			expect, actual, handleMsgf(optMsg...),
 		)
 
@@ -25,6 +30,62 @@ func Assert[T comparable](t *testing.T, expect, actual T, optMsg ...any) bool {
 	}
 
 	return true
+}
+
+// AssertSlice checks that two slices are equal, using [Assert] for each
+// element in the slice. Returns false if a failure occurs, otherwise true.
+func AssertSlice[T comparable](t *testing.T, expect, actual []T, optMsg ...any) bool {
+	if len(expect) != len(actual) {
+		t.Logf(
+			"Slices have different lengths:\n"+
+				"\tExpect length: %d\n"+
+				"\tActual length: %d\n"+
+				"%s",
+			len(expect), len(actual), handleMsgf(optMsg...),
+		)
+
+		t.Fail()
+		return false
+	} else if expectNil, actualNil := expect == nil, actual == nil; expectNil != actualNil {
+		t.Logf(
+			"Slices have different nil states:\n"+
+				"\tExpect nil: %t\n"+
+				"\tActual nil: %t\n"+
+				"%s",
+			expectNil, actualNil, handleMsgf(optMsg...),
+		)
+
+		t.Fail()
+		return false
+	}
+
+	for i := range expect {
+		if !Assert(t, expect[i], actual[i]) {
+			t.Logf(
+				"\nSlices not equal beginning at index %d:\n"+
+					"\tExpect: %#v\n"+
+					"\tActual: %#v\n"+
+					"%s",
+				i, expect, actual, handleMsgf(optMsg...),
+			)
+
+			return false
+		}
+	}
+
+	return true
+}
+
+// AssertNil checks that the given value is equal to nil. Fails the test and
+// returns false if not, otherwise returns true.
+func AssertNil(t *testing.T, value any, optMsg ...any) bool {
+	return assertNil(t, reflect.ValueOf(value), true, optMsg...)
+}
+
+// AssertNotNil checks that the given value is non-nil. Fails the test and
+// returns false if not, otherwise returns true.
+func AssertNotNil(t *testing.T, value any, optMsg ...any) bool {
+	return assertNil(t, reflect.ValueOf(value), false, optMsg...)
 }
 
 // AssertPanic tests that the given function panics at some point during its
@@ -37,6 +98,94 @@ func AssertPanic(t *testing.T, fn func(), optMsg ...any) bool {
 // execution, failing the test and returning false otherwise.
 func AssertNoPanic(t *testing.T, fn func(), optMsg ...any) bool {
 	return assertPanic(t, fn, false, optMsg...)
+}
+
+// AssertError tests that an error has occurred. This function accepts an
+// additional target error after the first, which will also check that the
+// error being checked identifies as the target (via [errors.Is]).
+//
+// Any remaining arguments are treated as an optional message with formatting
+// arguments.
+//
+// Fails the test and returns false if the error is nil or if the error does
+// not identify as the optional target error.
+func AssertError(t *testing.T, err error, args ...any) bool {
+	var target error
+
+	if len(args) > 0 {
+		if e, ok := args[0].(error); ok {
+			target = e
+			args = args[1:]
+		} else if args[0] == nil {
+			// if a literal nil is present, assume that the caller meant
+			// a nil error.
+			args = args[1:]
+		}
+	}
+
+	return assertError(t, err, target, true, args...)
+}
+
+// AssertNoError tests that no error has occurred. Fails the test and returns
+// false if the error is non-nil.
+func AssertNoError(t *testing.T, err error, optMsg ...any) bool {
+	return assertError(t, err, nil, false, optMsg...)
+}
+
+func assertError(t *testing.T, err, target error, should bool, optMsg ...any) bool {
+	var haveErr bool
+	var suffix string
+
+	if haveErr = err != nil; should == haveErr {
+		if target == nil || errors.Is(err, target) {
+			return true
+		}
+
+		t.Logf(
+			"error failed to identify as target error:\n"+
+				"\tError:\n"+
+				"\t\tType: %T\n"+
+				"\t\tMsg : %q\n"+
+				"\tTarget:\n"+
+				"\t\tType: %T\n"+
+				"\t\tMsg : %q\n"+
+				"%s",
+			err, err.Error(),
+			target, target.Error(),
+			handleMsgf(optMsg...),
+		)
+
+		t.Fail()
+		return false
+	} else if !should {
+		suffix = " not"
+	}
+
+	t.Logf("an error should%s have occurred\n%s", suffix, handleMsgf(optMsg...))
+	t.Fail()
+	return false
+}
+
+func assertNil(t *testing.T, rv reflect.Value, should bool, optMsg ...any) bool {
+	var isNil bool
+	var suffix string
+
+	switch rv.Kind() {
+	case reflect.Invalid:
+		isNil = true
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		isNil = rv.IsNil()
+	}
+
+	if should == isNil {
+		return true
+	} else if !should {
+		suffix = " not"
+	}
+
+	t.Logf("Value should%s be nil\n%s", suffix, handleMsgf(optMsg...))
+	t.Fail()
+	return false
 }
 
 func assertPanic(t *testing.T, fn func(), should bool, optMsg ...any) bool {
