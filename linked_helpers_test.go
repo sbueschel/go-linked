@@ -10,6 +10,58 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Assert checks that two values are equal using the "==" operator. Returns true
+// if equal. Otherwise, it fails the test, logs a message showing both expected
+// and actual values, and returns false.
+func Assert[T comparable](t *testing.T, expect, actual T) bool {
+	if expect != actual {
+		t.Logf("Values are not equal:\n\tExpect: %#v\n\tActual:%#v\n", expect, actual)
+		t.Fail()
+		return false
+	}
+
+	return true
+}
+
+// AssertPanic tests that the given function panics at some point during its
+// execution, failing the test and returning false, otherwise.
+func AssertPanic(t *testing.T, fn func()) bool {
+	return assertPanic(t, fn, true)
+}
+
+// AssertNoPanic tests that the given function does not panic during its
+// execution, failing the test and returning false otherwise.
+func AssertNoPanic(t *testing.T, fn func()) bool {
+	return assertPanic(t, fn, false)
+}
+
+func assertPanic(t *testing.T, fn func(), should bool) bool {
+	var panicked bool
+	var prefix string
+
+	func() {
+		defer func() {
+			// after go 1.21, this should only be non-nil when an actual panic has
+			// occurred, unless panicnil=1 is set in GODEBUG.
+			panicked = recover() != nil
+		}()
+
+		fn()
+	}()
+
+	if should == panicked {
+		return true
+	} else if should {
+		prefix = "a"
+	} else {
+		prefix = "no"
+	}
+
+	t.Logf("Expected %s panic to occur\n", prefix)
+	t.Fail()
+	return false
+}
+
 // When is a functional ternary statement which returns "this" when cond is
 // true. If cond is false, it returns "that" (if given), otherwise the zero
 // value of T.
