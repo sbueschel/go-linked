@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/sbueschel/go-linked"
-	"github.com/stretchr/testify/assert"
 )
 
 // Assert checks that two values are equal using the "==" operator. Returns true
@@ -220,8 +219,8 @@ func handleMsgf(args ...any) (msg string) {
 
 	if len(args) == 0 {
 		return msg
-	} else if msg, ok = args[0].(string); !ok {
-		msg = fmt.Sprint(args...)
+	} else if msg, ok = args[0].(string); !ok || len(args) == 1 {
+		msg = fmt.Sprintf("%v", args[0])
 	} else if len(args) > 1 {
 		msg = fmt.Sprintf(msg, args[1:]...)
 	}
@@ -366,20 +365,16 @@ func VerifyIterSeq[T comparable](t *testing.T, expect []T, seq iter.Seq[T]) erro
 }
 
 func AssertNodeValues[T comparable](t *testing.T, expect []T, nodes []*linked.Node[T], msgAndArgs ...any) (ok bool) {
-	if !assert.Len(
-		t, nodes, len(expect),
-		"expected %d items in %T (have %d)",
-		len(expect), nodes, len(nodes),
-	) {
+	if !Assert(t, len(nodes), len(expect), "unexpected length") {
 		return false
 	} else if len(expect) == 0 {
 		return true
 	}
 
 	for i := range expect {
-		if !assert.NotNil(t, nodes[i], "%T at index %d", nodes[i], i) {
+		if !AssertNotNil(t, nodes[i], "%T at index %d", nodes[i], i) {
 			return false
-		} else if !assert.Equal(t, expect[i], nodes[i].Value, "%T at index %d", nodes[i], i) {
+		} else if !Assert(t, expect[i], nodes[i].Value, "%T at index %d", nodes[i], i) {
 			t.Logf("Members:\n\tExpect: %#v\n\tActual: %#v\n", expect, NodeSliceToValues(nodes))
 			return false
 		}
@@ -389,20 +384,16 @@ func AssertNodeValues[T comparable](t *testing.T, expect []T, nodes []*linked.No
 }
 
 func AssertNodesEqual[T comparable](t *testing.T, expect, actual []*linked.Node[T]) bool {
-	if !assert.Len(
-		t, actual, len(expect),
-		"expected %d items in %T (have %d)",
-		len(expect), actual, len(actual),
-	) {
+	if !Assert(t, len(actual), len(expect), "unexpected length") {
 		return false
 	} else if len(expect) == 0 {
 		return true
 	}
 
 	for i := range expect {
-		if !assert.NotNil(t, actual[i], "%T at index %d", actual[i], i) {
+		if !AssertNotNil(t, actual[i], "%T at index %d", actual[i], i) {
 			return false
-		} else if !assert.Same(t, expect[i], actual[i], "%T at index %d", actual[i], i) {
+		} else if !Assert(t, expect[i], actual[i], "should have same %T pointer at index %d", actual[i], i) {
 			return false
 		}
 	}
@@ -417,13 +408,13 @@ func AssertListEqual[T comparable](t *testing.T, expect, actual *linked.List[T])
 	var err error
 	if expect == actual {
 		return true
-	} else if expectNodes, err = GatherNodes(expect.Front(), false); !assert.NoError(
+	} else if expectNodes, err = GatherNodes(expect.Front(), false); !AssertNoError(
 		t, err,
 		"while gathering %[1]T from expected %[2]T@%[2]p",
 		expectNodes, expect,
 	) {
 		return false
-	} else if actualNodes, err = GatherNodes(expect.Front(), false); !assert.NoError(
+	} else if actualNodes, err = GatherNodes(expect.Front(), false); !AssertNoError(
 		t, err,
 		"while gathering %[1]T from actual %[2]T@%[2]p",
 		actualNodes, actual,
@@ -435,17 +426,17 @@ func AssertListEqual[T comparable](t *testing.T, expect, actual *linked.List[T])
 }
 
 func AssertListValues[T comparable](t *testing.T, expect []T, list *linked.List[T]) bool {
-	if !assert.NotNil(t, list) {
+	if !AssertNotNil(t, list) {
 		return false
 	}
 
 	nodes, err := GatherNodes(list.Front(), false)
-	return assert.NoError(t, err, "while gathering %T for comparison", nodes) &&
+	return AssertNoError(t, err, "while gathering %T for comparison", nodes) &&
 		AssertNodeValues(t, expect, nodes)
 }
 
 func AssertVersion(t *testing.T, expect, actual uint) bool {
-	return assert.Equal(
+	return Assert(
 		t, expect, actual,
 		"Version(): should%s have changed",
 		When(expect == actual, " not"),
