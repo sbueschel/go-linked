@@ -214,6 +214,44 @@ func assertPanic(t *testing.T, fn func(), should bool, optMsg ...any) bool {
 	return false
 }
 
+// AssertSame fails the test and returns false if expect and actual do not
+// point to the same object, otherwise returns true.
+func AssertSame[T any](t *testing.T, expect, actual *T, optMsg ...any) bool {
+	return assertSame(t, expect, actual, true, optMsg...)
+}
+
+// AssertNotSame fails the test and returns false if expect and actual
+// point to the same object, otherwise returns true.
+func AssertNotSame[T any](t *testing.T, unexpected, actual *T, optMsg ...any) bool {
+	return assertSame(t, unexpected, actual, false, optMsg...)
+}
+
+func assertSame[T any](t *testing.T, expect, actual *T, should bool, optMsg ...any) bool {
+	var isSame bool
+	var suffix, expectName string
+
+	if isSame = expect == actual; isSame == should {
+		return true
+	} else if !should {
+		suffix = "distinct from one another"
+		expectName = "Not Expected"
+	} else {
+		suffix = "the same"
+		expectName = "Expect"
+	}
+
+	t.Logf(
+		"pointer values should be %[1]s\n"+
+			"\t%[2]s: %[3]T@%[3]p\n"+
+			"\tActual: %[4]T@%[4]p\n"+
+			"%[5]s",
+		suffix, expectName, expect, actual, handleMsgf(optMsg...),
+	)
+
+	t.Fail()
+	return false
+}
+
 func handleMsgf(args ...any) (msg string) {
 	var ok bool
 
