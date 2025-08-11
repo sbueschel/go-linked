@@ -378,7 +378,13 @@ func (l *List[T]) Take(inherit, target *Node[T], edge Edge) *Node[T] {
 		inherit.Pop()
 	}
 
-	l.insert(&span[T]{inherit, inherit}, target, edge)
+	if inherit.list = l; target == nil {
+		l.edges[Front] = inherit
+		l.edges[Back] = inherit
+	} else {
+		l.insert(&span[T]{inherit, inherit}, target, edge)
+	}
+
 	l.length++
 	l.version++
 	return inherit
