@@ -1103,14 +1103,20 @@ func (ts *TestSuite[T]) testListTake(t *testing.T, edge linked.Edge) {
 	list := ts.List()
 	size := list.Len()
 
-	if size == 0 {
-		return // nothing to do
-	} else if expect = Reversed(ts.Values()); edge.Must() == linked.Before {
+	if expect = Reversed(ts.Values()); edge.Must() == linked.Before {
 		take = list.TakeBefore
 		expect = slices.Concat(expect, ts.Values())
 	} else {
 		take = list.TakeAfter
 		expect = slices.Concat(ts.Values(), expect)
+	}
+
+	if size == 0 {
+		var zero linked.Node[T]
+		_ = AssertSame(t, &zero, take(&zero, nil), "should inherit at %s of %T", edge.List(), list) &&
+			Assert(t, true, zero.IsMember(list), "should be a member of %T", list)
+
+		return
 	}
 
 	oppo := edge.Opposite()
